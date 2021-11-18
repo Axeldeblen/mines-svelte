@@ -1,12 +1,14 @@
 <script>
 	import * as api from '../api';
-	import { gameState, tilesState, minesState, revealedState } from '../store';
+	import { gameState, tilesState, minesState, notSqueezedTiles } from '../store';
+	import { initialTiles, isRevealed } from '../utils';
 
 	const bet = async () => {
 		const { status } = await api.clickBetButton();
-		tilesState.set(Array.from(Array(25)));
+		tilesState.set(initialTiles());
 		minesState.set([]);
 		gameState.set(status);
+		notSqueezedTiles.set([]);
 	};
 
 	const cashout = async () => {
@@ -15,13 +17,17 @@
 		minesState.set(mines);
 
 		tilesState.update((value) => {
-			let newValue = [...value];
+			let tiles = [...value];
 
-			return newValue.map((state, id) => {
-				if (mines.includes(id)) {
-					return 'mine';
+			return tiles.map((tile, id) => {
+				if (!$notSqueezedTiles.includes(id)) {
+					if ($minesState.includes(id)) {
+						return { type: 'mine', squeeze: $tilesState[id].squeeze };
+					} else {
+						return { type: 'gem', squeeze: $tilesState[id].squeeze };
+					}
 				} else {
-					return 'gem';
+					return { type: `${$tilesState[id].type}`, squeeze: $tilesState[id].squeeze };
 				}
 			});
 		});
@@ -33,21 +39,20 @@
 {/if}
 
 {#if $gameState === 'progress'}
-	{#if $revealedState}
-		<button class="button cashout" on:click={() => cashout()}>{'Cashout'}</button>
-	{:else}
-		<button class="button cashout" disabled on:click={() => cashout()}>{'Cashout'}</button>
-	{/if}
+	<button class="button cashout" disabled={!isRevealed($tilesState)} on:click={() => cashout()}
+		>{'Cashout'}</button
+	>
 {/if}
 
 <style>
 	.button {
 		border-radius: 0.5em;
-		margin: 3em;
+		margin-top: 2em;
 		border: none;
 		width: 12em;
 		height: 3em;
 		font-size: 1em;
+		justify-self: center;
 	}
 	.bet {
 		background-color: rgb(31, 255, 32);

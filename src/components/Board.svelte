@@ -11,8 +11,10 @@
 <style>
 	.board-container {
 		display: grid;
-		grid-template-columns: minmax(0, 20em);
 		background-color: rgb(15, 33, 46);
 		padding: 2rem;
+		height: 720px;
+		width: 630px;
+		border-radius: 1em;
 	}
 </style>

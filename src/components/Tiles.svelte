@@ -1,19 +1,21 @@
 <script lang="ts">
-	import gem_icon from '../assets/gem.svg';
-	import mine_icon from '../assets/mine.svg';
+	import gem from '../assets/gem.svg';
+	import mine from '../assets/mine.svg';
 	import gem_audio from '../assets/gem.mp3';
 	import mine_audio from '../assets/mine.mp3';
 
 	import * as api from '../api';
 
-	import { gameState, minesState, tilesState, revealedState } from '../store';
+	import { gameState, minesState, tilesState, revealedState, notSqueezedTiles } from '../store';
 
 	const tile = async (id: number) => {
 		const { status, mines } = await api.clickTile(id);
+
 		gameState.set(status);
+		$tilesState[id].squeeze = false;
 
 		if ($gameState === 'progress') {
-			$tilesState[id] = 'gem';
+			$tilesState[id].type = 'gem';
 			revealedState.set(true);
 		}
 
@@ -21,23 +23,29 @@
 			minesState.set(mines);
 
 			tilesState.update((value) => {
-				let newValue = [...value];
+				let tiles = [...value];
 
-				return newValue.map((state, id) => {
-					if (mines.includes(id)) {
-						return 'mine';
+				return tiles.map((tile, id) => {
+					if (!$notSqueezedTiles.includes(id)) {
+						if ($minesState.includes(id)) {
+							return { type: 'mine', squeeze: $tilesState[id].squeeze };
+						} else {
+							return { type: 'gem', squeeze: $tilesState[id].squeeze };
+						}
 					} else {
-						return 'gem';
+						return { type: `${$tilesState[id].type}`, squeeze: $tilesState[id].squeeze };
 					}
 				});
 			});
 		}
 
+		$notSqueezedTiles.push(id);
+
 		playAudio(id);
 	};
 
 	const playAudio = (id: number) => {
-		let url = $tilesState[id] === 'gem' ? gem_audio : mine_audio;
+		let url = $tilesState[id].type === 'gem' ? gem_audio : mine_audio;
 
 		new Audio(url).play();
 	};
@@ -45,40 +53,50 @@
 
 <div class="grid-container" style="grid-template-columns: repeat(5,auto);">
 	{#each { length: $tilesState.length } as _, id (id)}
-		{#if $gameState === 'idle'}
-			<button class="idle" on:click={() => alert('Click Bet button to start playing')} />
-		{:else}
-			<button class="in-progress" on:click={() => tile(id)}>
-				{#if $tilesState[id] === 'gem'}
-					<img src={gem_icon} alt="gem" />
+		<button
+			disabled={$gameState === 'progress' ? false : true}
+			class="tile"
+			on:click={() => tile(id)}
+		>
+			{#if $tilesState[id].type === 'gem'}
+				{#if !$tilesState[id].squeeze}
+					<img src={gem} alt="gem" />
+				{:else}
+					<img class="squeezed" src={gem} alt="gem" />
 				{/if}
-				{#if $tilesState[id] === 'mine'}
-					<img src={mine_icon} alt="mine" />
+			{/if}
+
+			{#if $tilesState[id].type === 'mine'}
+				{#if !$tilesState[id].squeeze}
+					<img src={mine} alt="mine" />
+				{:else}
+					<img class="squeezed" src={mine} alt="mine" />
 				{/if}
-			</button>
-		{/if}
+			{/if}
+		</button>
 	{/each}
 </div>
 
 <style>
 	.grid-container {
 		display: grid;
-		width: 50%;
-		height: 50%;
 		grid-gap: 0.5em;
-		background: rgb(15, 33, 46);
 	}
 	.grid-container button {
 		border-radius: 0.5em;
 		border: none;
-		width: 8em;
-		height: 8em;
-		padding: 1.5em;
+		width: 120px;
+		height: 120px;
+		padding: 1em;
 	}
-	.idle {
-		background: rgb(33, 55, 67);
-	}
-	.in-progress {
+	.tile {
 		background: rgb(54, 83, 99);
+	}
+	.squeezed {
+		height: 60px;
+		width: 60px;
+		padding: 12px;
+		background: rgb(33, 55, 67);
+		border-radius: 2.5em;
 	}
 </style>
